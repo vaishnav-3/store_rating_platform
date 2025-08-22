@@ -6,11 +6,12 @@ import {
   filterStores,
   getOwnerDashboard,
   getOwnerStoreRatings,
-  updateStore
+  updateStore,
+  updateOwnerPassword
 } from '../controllers/store.controller.js';
 import { optionalAuth, authenticateToken } from '../middleware/auth.middleware.js';
 import { requireStoreOwner } from '../middleware/role.middleware.js';
-import { validateStoreUpdate } from '../middleware/validation.middleware.js';
+import { validateStoreUpdate, validatePasswordUpdate } from '../middleware/validation.middleware.js';
 
 const router = express.Router();
 
@@ -23,6 +24,12 @@ router.get('/owner/dashboard', authenticateToken, requireStoreOwner, getOwnerDas
 // @desc    Get ratings for owner's store
 // @access  Private (Store Owner only)
 router.get('/owner/ratings', authenticateToken, requireStoreOwner, getOwnerStoreRatings);
+
+
+// @route   PUT /api/stores/owner/password
+// @desc    Update store owner password
+// @access  Private (Store Owner only)
+router.put('/owner/password', authenticateToken, requireStoreOwner, validatePasswordUpdate, updateOwnerPassword);
 
 // @route   GET /api/stores/search
 // @desc    Search stores by name and address

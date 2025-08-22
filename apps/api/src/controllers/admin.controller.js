@@ -6,7 +6,8 @@ import {
   createStoreByAdmin,
   getAllUsersWithFiltering,
   updateUserByAdmin,
-  deleteUserByAdmin
+  deleteUserByAdmin,
+  changeUserRoleByAdmin
 } from '../services/admin.service.js';
 import { eq, ilike, and, or, count } from 'drizzle-orm';
 
@@ -373,6 +374,76 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete user'
+    });
+  }
+};
+
+
+
+export const changeUserRole = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { role } = req.body;
+    
+    if (isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID'
+      });
+    }
+    
+    const result = await changeUserRoleByAdmin(userId, role);
+    
+    // Remove password from response
+    const { password: _, ...userResponse } = result.user;
+    
+    res.status(200).json({
+      success: true,
+      message: 'User role changed successfully',
+      data: {
+        user: userResponse,
+        roleChangeInfo: {
+          previousRole: result.previousRole,
+          newRole: role,
+          storeAffected: result.storeAffected,
+          ratingsAffected: result.ratingsAffected
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Change user role error:', error);
+    
+    if (error.message === 'User not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    if (error.message === 'Cannot change role - user owns a store') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change role from store_owner - user owns a store. Delete the store first or transfer ownership.'
+      });
+    }
+    
+    if (error.message === 'Role is already set to the requested value') {
+      return res.status(400).json({
+        success: false,
+        message: 'User already has the requested role'
+      });
+    }
+    
+    if (error.message === 'Cannot change admin role') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change role of admin users for security reasons'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change user role'
     });
   }
 };

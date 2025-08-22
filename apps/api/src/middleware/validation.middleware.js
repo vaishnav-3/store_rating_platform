@@ -191,3 +191,26 @@ export const validateUserUpdate = [
     next();
   }
 ];
+
+
+
+export const validateRoleChange = [
+  body('role')
+    .notEmpty()
+    .withMessage('Role is required')
+    .isIn(['admin', 'user', 'store_owner'])
+    .withMessage('Role must be admin, user, or store_owner'),
+  
+  // Middleware to handle validation errors
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+    next();
+  }
+];

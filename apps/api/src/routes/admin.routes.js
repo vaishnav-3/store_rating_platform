@@ -1,8 +1,8 @@
 import express from 'express';
-import { getDashboard, searchUsers, createUser, createStore, getAllUsers, updateUser, deleteUser } from '../controllers/admin.controller.js';
+import { getDashboard, searchUsers, createUser, createStore, getAllUsers, updateUser, deleteUser, changeUserRole } from '../controllers/admin.controller.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
 import { requireAdmin } from '../middleware/role.middleware.js';
-import { validateRegistration, validateStoreCreation, validateUserUpdate } from '../middleware/validation.middleware.js';
+import { validateRegistration, validateStoreCreation, validateUserUpdate, validateRoleChange } from '../middleware/validation.middleware.js';
 
 const router = express.Router();
 
@@ -49,6 +49,13 @@ router.put('/users/:id',
 router.delete('/users/:id',
   authenticateToken,
   deleteUser
+);
+
+// Change user role
+router.put('/users/:id/role',
+  authenticateToken,
+  validateRoleChange,
+  changeUserRole
 );
 
 router.get('/dashboard', getDashboard)

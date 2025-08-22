@@ -401,3 +401,90 @@ export const deleteUserByAdmin = async (userId) => {
     throw error;
   }
 };
+
+
+export const changeUserRoleByAdmin = async (userId, newRole) => {
+  try {
+    // Check if user exists
+    const [existingUser] = await db.select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (!existingUser) {
+      throw new Error('User not found');
+    }
+    
+    // Prevent changing admin roles (security measure)
+    if (existingUser.role === 'admin') {
+      throw new Error('Cannot change admin role');
+    }
+    
+    // Check if role is already the same
+    if (existingUser.role === newRole) {
+      throw new Error('Role is already set to the requested value');
+    }
+    
+    const previousRole = existingUser.role;
+    let storeAffected = null;
+    let ratingsAffected = 0;
+    
+    // Start transaction for role change with potential cascading effects
+    const result = await db.transaction(async (tx) => {
+      // If changing FROM store_owner, check if they own a store
+      if (previousRole === 'store_owner' && newRole !== 'store_owner') {
+        const [userStore] = await tx.select()
+          .from(stores)
+          .where(eq(stores.ownerId, userId))
+          .limit(1);
+        
+        if (userStore) {
+          throw new Error('Cannot change role - user owns a store');
+        }
+      }
+      
+      // If changing TO store_owner, ensure they don't already have a store assigned
+      // (This is more of a data integrity check)
+      if (newRole === 'store_owner' && previousRole !== 'store_owner') {
+        const [existingStore] = await tx.select()
+          .from(stores)
+          .where(eq(stores.ownerId, userId))
+          .limit(1);
+        
+        if (existingStore) {
+          storeAffected = existingStore;
+        }
+      }
+      
+      // Update user role
+      const [updatedUser] = await tx.update(users)
+        .set({
+          role: newRole,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      // Count ratings for information purposes
+      const [ratingsCount] = await tx.select({ 
+        count: count() 
+      })
+      .from(ratings)
+      .where(eq(ratings.userId, userId));
+      
+      ratingsAffected = ratingsCount.count;
+      
+      return updatedUser;
+    });
+    
+    return {
+      user: result,
+      previousRole,
+      storeAffected,
+      ratingsAffected
+    };
+  } catch (error) {
+    console.error('Error changing user role:', error);
+    throw error;
+  }
+};

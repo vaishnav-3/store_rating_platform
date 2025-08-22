@@ -1,6 +1,7 @@
 import { db } from '../db/connection.js';
 import { stores, users, ratings } from '../models/index.js';
 import { eq, sql, count, avg, ilike, and, or, gte, lte, desc } from 'drizzle-orm';
+import bcrypt from 'bcryptjs';
 
 // @desc    Get all stores with pagination
 // @route   GET /api/stores
@@ -501,6 +502,60 @@ export const updateStore = async (req, res, next) => {
       data: {
         store: updatedStore
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+//update password functionality
+export const updateOwnerPassword = async (req, res, next) => {
+  try {
+    const ownerId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    // Get current user details
+    const [currentUser] = await db
+      .select({
+        id: users.id,
+        password: users.password
+      })
+      .from(users)
+      .where(eq(users.id, ownerId));
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, currentUser.password);
+    
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 12;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await db
+      .update(users)
+      .set({
+        password: hashedNewPassword,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, ownerId));
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
     });
   } catch (error) {
     next(error);
