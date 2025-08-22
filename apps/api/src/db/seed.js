@@ -18,7 +18,7 @@ async function seedDatabase() {
 
     console.log('✅ Admin user created:', adminUser.email);
 
-    // Create sample store owner
+    // Create sample store owner 
     const hashedStorePassword = await bcrypt.hash('Store123!', 12);
     const [storeOwner] = await db.insert(users).values({
       name: 'John Store Owner',

@@ -1,5 +1,6 @@
 import app from './app.js';
 import { config } from './src/config/index.js';
+import listEndpoints from "express-list-endpoints";
 
 const PORT = config.port;
 
