@@ -1,6 +1,6 @@
 import { db } from '../db/connection.js';
 import { stores, users, ratings } from '../models/index.js';
-import { eq, sql, count, avg } from 'drizzle-orm';
+import { eq, sql, count, avg, ilike, and, or, gte, lte, desc } from 'drizzle-orm';
 
 // @desc    Get all stores with pagination
 // @route   GET /api/stores
@@ -127,7 +127,7 @@ export const getStoreById = async (req, res, next) => {
       .from(ratings)
       .leftJoin(users, eq(ratings.userId, users.id))
       .where(eq(ratings.storeId, storeId))
-      .orderBy(sql`${ratings.createdAt} DESC`)
+      .orderBy(desc(ratings.createdAt))
       .limit(5);
 
     res.status(200).json({
@@ -138,6 +138,368 @@ export const getStoreById = async (req, res, next) => {
           ...store,
           recentRatings
         }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Search stores by name and address
+// @route   GET /api/stores/search
+// @access  Public
+export const searchStores = async (req, res, next) => {
+  try {
+    const { name, address } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    if (!name && !address) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name or address to search'
+      });
+    }
+
+    // Build search conditions
+    let whereCondition;
+    if (name && address) {
+      whereCondition = and(
+        ilike(stores.name, `%${name}%`),
+        ilike(stores.address, `%${address}%`)
+      );
+    } else if (name) {
+      whereCondition = ilike(stores.name, `%${name}%`);
+    } else {
+      whereCondition = ilike(stores.address, `%${address}%`);
+    }
+
+    // Search stores
+    const searchResults = await db
+      .select({
+        id: stores.id,
+        name: stores.name,
+        email: stores.email,
+        address: stores.address,
+        averageRating: stores.averageRating,
+        totalRatings: stores.totalRatings,
+        createdAt: stores.createdAt,
+        owner: {
+          id: users.id,
+          name: users.name,
+          email: users.email
+        },
+        userRating: req.user ? sql`(
+          SELECT rating FROM ${ratings} 
+          WHERE store_id = ${stores.id} 
+          AND user_id = ${req.user.id}
+        )` : sql`NULL`
+      })
+      .from(stores)
+      .leftJoin(users, eq(stores.ownerId, users.id))
+      .where(whereCondition)
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const [totalResult] = await db
+      .select({ total: count() })
+      .from(stores)
+      .where(whereCondition);
+
+    const total = totalResult.total;
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      success: true,
+      message: 'Store search completed successfully',
+      data: {
+        stores: searchResults,
+        searchParams: { name, address },
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limit
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Filter stores by rating and other criteria
+// @route   GET /api/stores/filter
+// @access  Public
+export const filterStores = async (req, res, next) => {
+  try {
+    const { rating, location, minRating, maxRating } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // Build filter conditions
+    let whereConditions = [];
+
+    if (rating) {
+      const ratingValue = parseFloat(rating);
+      if (ratingValue >= 1 && ratingValue <= 5) {
+        whereConditions.push(gte(stores.averageRating, ratingValue.toString()));
+      }
+    }
+
+    if (minRating) {
+      const minRatingValue = parseFloat(minRating);
+      if (minRatingValue >= 1 && minRatingValue <= 5) {
+        whereConditions.push(gte(stores.averageRating, minRatingValue.toString()));
+      }
+    }
+
+    if (maxRating) {
+      const maxRatingValue = parseFloat(maxRating);
+      if (maxRatingValue >= 1 && maxRatingValue <= 5) {
+        whereConditions.push(lte(stores.averageRating, maxRatingValue.toString()));
+      }
+    }
+
+    if (location) {
+      whereConditions.push(ilike(stores.address, `%${location}%`));
+    }
+
+    const whereCondition = whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+    // Filter stores
+    const filteredStores = await db
+      .select({
+        id: stores.id,
+        name: stores.name,
+        email: stores.email,
+        address: stores.address,
+        averageRating: stores.averageRating,
+        totalRatings: stores.totalRatings,
+        createdAt: stores.createdAt,
+        owner: {
+          id: users.id,
+          name: users.name,
+          email: users.email
+        },
+        userRating: req.user ? sql`(
+          SELECT rating FROM ${ratings} 
+          WHERE store_id = ${stores.id} 
+          AND user_id = ${req.user.id}
+        )` : sql`NULL`
+      })
+      .from(stores)
+      .leftJoin(users, eq(stores.ownerId, users.id))
+      .where(whereCondition)
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const totalQuery = db
+      .select({ total: count() })
+      .from(stores);
+    
+    if (whereCondition) {
+      totalQuery.where(whereCondition);
+    }
+    
+    const [totalResult] = await totalQuery;
+    const total = totalResult.total;
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      success: true,
+      message: 'Store filtering completed successfully',
+      data: {
+        stores: filteredStores,
+        filters: { rating, location, minRating, maxRating },
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limit
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Store owner dashboard
+// @route   GET /api/stores/owner/dashboard
+// @access  Private (Store Owner only)
+export const getOwnerDashboard = async (req, res, next) => {
+  try {
+    const ownerId = req.user.id;
+
+    // Get owner's store
+    const [ownerStore] = await db
+      .select()
+      .from(stores)
+      .where(eq(stores.ownerId, ownerId));
+
+    if (!ownerStore) {
+      return res.status(404).json({
+        success: false,
+        message: 'No store found for this owner'
+      });
+    }
+
+    // Get store statistics
+    const [storeStats] = await db
+      .select({
+        averageRating: avg(ratings.rating),
+        totalRatings: count(ratings.id)
+      })
+      .from(ratings)
+      .where(eq(ratings.storeId, ownerStore.id));
+
+    res.status(200).json({
+      success: true,
+      message: 'Owner dashboard data retrieved successfully',
+      data: {
+        store: {
+          id: ownerStore.id,
+          name: ownerStore.name,
+          email: ownerStore.email,
+          address: ownerStore.address,
+          averageRating: storeStats.averageRating ? parseFloat(storeStats.averageRating).toFixed(2) : '0.00',
+          totalRatings: storeStats.totalRatings
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get ratings for owner's store
+// @route   GET /api/stores/owner/ratings
+// @access  Private (Store Owner only)
+export const getOwnerStoreRatings = async (req, res, next) => {
+  try {
+    const ownerId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+
+    // Get owner's store
+    const [ownerStore] = await db
+      .select()
+      .from(stores)
+      .where(eq(stores.ownerId, ownerId));
+
+    if (!ownerStore) {
+      return res.status(404).json({
+        success: false,
+        message: 'No store found for this owner'
+      });
+    }
+
+    // Get ratings for owner's store
+    const storeRatings = await db
+      .select({
+        id: ratings.id,
+        rating: ratings.rating,
+        createdAt: ratings.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email
+        }
+      })
+      .from(ratings)
+      .leftJoin(users, eq(ratings.userId, users.id))
+      .where(eq(ratings.storeId, ownerStore.id))
+      .orderBy(desc(ratings.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const [totalResult] = await db
+      .select({ total: count() })
+      .from(ratings)
+      .where(eq(ratings.storeId, ownerStore.id));
+
+    const total = totalResult.total;
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      success: true,
+      message: 'Store ratings retrieved successfully',
+      data: {
+        store: {
+          id: ownerStore.id,
+          name: ownerStore.name,
+          averageRating: ownerStore.averageRating,
+          totalRatings: ownerStore.totalRatings
+        },
+        ratings: storeRatings,
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: total,
+          itemsPerPage: limit
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update store details (owner only)
+// @route   PUT /api/stores/:id
+// @access  Private (Store Owner only - own store)
+export const updateStore = async (req, res, next) => {
+  try {
+    const storeId = parseInt(req.params.id);
+    const ownerId = req.user.id;
+    const { name, email, address } = req.body;
+
+    // Check if store exists and belongs to owner
+    const [store] = await db
+      .select()
+      .from(stores)
+      .where(eq(stores.id, storeId));
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        message: 'Store not found'
+      });
+    }
+
+    if (store.ownerId !== ownerId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only update your own store'
+      });
+    }
+
+    // Build update object
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (address) updateData.address = address;
+    updateData.updatedAt = new Date();
+
+    // Update store
+    const [updatedStore] = await db
+      .update(stores)
+      .set(updateData)
+      .where(eq(stores.id, storeId))
+      .returning();
+
+    res.status(200).json({
+      success: true,
+      message: 'Store updated successfully',
+      data: {
+        store: updatedStore
       }
     });
   } catch (error) {
