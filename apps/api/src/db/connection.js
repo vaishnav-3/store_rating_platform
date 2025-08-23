@@ -6,7 +6,9 @@ import * as schema from '../models/index.js';
 // Create PostgreSQL connection
 const sql = postgres(config.database.url, { 
   max: config.database.maxConnections || 10,
-  ssl: config.env === 'production' ? 'require' : false
+  ssl: config.env === 'production' 
+    ? { rejectUnauthorized: false } 
+    : false
 });
 
 // Create Drizzle instance with schema
