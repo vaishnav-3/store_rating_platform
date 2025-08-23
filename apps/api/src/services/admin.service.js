@@ -1,7 +1,7 @@
 import { db } from '../db/connection.js';
 import { users, stores, ratings } from '../models/index.js';
 import bcrypt from 'bcryptjs';
-import { count, eq, like, and, or, asc, desc } from 'drizzle-orm';
+import { count, eq, ilike, and, or, asc, desc } from 'drizzle-orm';
 
 export const getDashboardMetrics = async () => {
   try {
@@ -157,49 +157,48 @@ export const createStoreByAdmin = async (storeData) => {
 
 
 
+
+
 export const getAllUsersWithFiltering = async (filters, pagination, sorting) => {
   try {
     const { name, email, address, role } = filters;
     const { page, limit } = pagination;
     const { sortBy, sortOrder } = sorting;
-    
+
     // Build WHERE conditions
     const conditions = [];
-    
+
     if (name) {
-      conditions.push(like(users.name, `%${name}%`));
+      conditions.push(ilike(users.name, `%${name}%`)); // case-insensitive
     }
-    
+
     if (email) {
-      conditions.push(like(users.email, `%${email}%`));
+      conditions.push(ilike(users.email, `%${email}%`)); // case-insensitive
     }
-    
+
     if (address) {
-      conditions.push(like(users.address, `%${address}%`));
+      conditions.push(ilike(users.address, `%${address}%`)); // case-insensitive
     }
-    
+
     if (role) {
-      conditions.push(eq(users.role, role));
+      conditions.push(eq(users.role, role)); // exact match
     }
-    
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    
+
     // Build ORDER BY
     const validSortFields = ['name', 'email', 'role', 'createdAt', 'updatedAt'];
     const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const orderBy = sortOrder === 'asc' ? asc(users[finalSortBy]) : desc(users[finalSortBy]);
-    
+
     // Get total count for pagination
-    const [totalCountResult] = await db.select({ 
-      count: count() 
-    })
-    .from(users)
-    .where(whereClause);
-    
+    const [totalCountResult] = await db.select({ count: count() })
+      .from(users)
+      .where(whereClause);
     const totalCount = totalCountResult.count;
     const totalPages = Math.ceil(totalCount / limit);
     const offset = (page - 1) * limit;
-    
+
     // Get users with filtering, sorting, and pagination
     let query = db.select({
       id: users.id,
@@ -214,13 +213,13 @@ export const getAllUsersWithFiltering = async (filters, pagination, sorting) => 
     .orderBy(orderBy)
     .limit(limit)
     .offset(offset);
-    
+
     if (whereClause) {
       query = query.where(whereClause);
     }
-    
+
     const usersList = await query;
-    
+
     // For store owners, get their store information
     const usersWithStores = await Promise.all(
       usersList.map(async (user) => {
@@ -233,16 +232,13 @@ export const getAllUsersWithFiltering = async (filters, pagination, sorting) => 
           .from(stores)
           .where(eq(stores.ownerId, user.id))
           .limit(1);
-          
-          return {
-            ...user,
-            store: userStore || null
-          };
+
+          return { ...user, store: userStore || null };
         }
         return user;
       })
     );
-    
+
     return {
       users: usersWithStores,
       totalCount,

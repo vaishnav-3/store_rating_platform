@@ -30,7 +30,7 @@ export const config = {
   // Rate limiting
   rateLimit: {
     windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000, // minutes to ms
-    max: parseInt(process.env.RATE_LIMIT_MAX) || 100
+    max: parseInt(process.env.RATE_LIMIT_MAX) || 100 // max requests per windowMs
   },
   
   // File upload limits

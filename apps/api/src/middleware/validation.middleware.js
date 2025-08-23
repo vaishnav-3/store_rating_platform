@@ -28,8 +28,8 @@ export const validateLogin = [
 // Registration validation
 export const validateRegistration = [
   body('name')
-    .isLength({ min: 20, max: 60 })
-    .withMessage('Name must be between 20 and 60 characters'),
+    .isLength({ min: 10, max: 60 })
+    .withMessage('Name must be between 10 and 60 characters'),
   body('email')
     .isEmail()
     .normalizeEmail()
@@ -63,8 +63,8 @@ export const validatePasswordUpdate = [
 export const validateProfileUpdate = [
   body('name')
     .optional()
-    .isLength({ min: 20, max: 60 })
-    .withMessage('Name must be between 20 and 60 characters'),
+    .isLength({ min: 10, max: 60 })
+    .withMessage('Name must be between 10 and 60 characters'),
   body('address')
     .optional()
     .isLength({ max: 400 })
@@ -112,8 +112,8 @@ export const validateStoreUpdate = [
 
 export const validateStoreCreation = [
   body('name')
-    .isLength({ min: 20, max: 60 })
-    .withMessage('Store name must be between 20 and 60 characters'),
+    .isLength({ min: 10, max: 60 })
+    .withMessage('Store name must be between 10 and 60 characters'),
   
   body('email')
     .isEmail()
@@ -149,8 +149,8 @@ export const validateStoreCreation = [
 export const validateUserUpdate = [
   body('name')
     .optional()
-    .isLength({ min: 20, max: 60 })
-    .withMessage('Name must be between 20 and 60 characters'),
+    .isLength({ min: 10, max: 60 })
+    .withMessage('Name must be between 10 and 60 characters'),
   
   body('email')
     .optional()
