@@ -20,7 +20,7 @@ app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: config.env === 'production' 
-    ? ['http://localhost:5174'] 
+    ? ['https://storerate.up.railway.app'] 
     : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'], 
   credentials: true
 }));
