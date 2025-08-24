@@ -11,7 +11,6 @@ The platform allows users to submit and manage store ratings, with role-based ac
 - [React.js](https://react.dev/) – Component-based UI  
 - [React Router DOM](https://reactrouter.com/) – Routing  
 - [Tailwind CSS](https://tailwindcss.com/) – Utility-first styling  
-- [Framer Motion](https://www.framer.com/motion/) – Animations  
 - [Lucide React](https://lucide.dev/) – Icons  
 
 **Backend**
@@ -26,9 +25,7 @@ The platform allows users to submit and manage store ratings, with role-based ac
 
 **Dev Tools**
 - [Vite](https://vitejs.dev/) – Frontend bundler  
-- [ESLint](https://eslint.org/) – Linting  
 - [Nodemon](https://nodemon.io/) – Auto-reload backend  
-- [Jest](https://jestjs.io/) – Testing  
 
 ---
 
