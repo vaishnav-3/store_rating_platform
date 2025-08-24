@@ -154,8 +154,6 @@ const LoginForm = ({ onSuccess }) => {
           </Link>
         </p>
       </div>
-
-      {import.meta.env.DEV && (
         <div className="mt-4 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2">Demo Credentials:</h3>
           <div className="text-sm text-blue-800 space-y-1">
@@ -170,7 +168,7 @@ const LoginForm = ({ onSuccess }) => {
             </p>
           </div>
         </div>
-      )}
+      
     </div>
   );
 };
