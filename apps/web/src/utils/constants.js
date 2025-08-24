@@ -4,7 +4,7 @@ export const USER_ROLES = {
   STORE_OWNER: 'store_owner'
 };
 
-export const API_BASE_URL = 'http://localhost:5001/api';
+export const API_BASE_URL = 'storerate.up.railway.app/api';
 
 export const RATING_STARS = [1, 2, 3, 4, 5];
 
