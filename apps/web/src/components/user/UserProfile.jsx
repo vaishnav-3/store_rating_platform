@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { validatePassword } from "../../utils/validators";
 import LoadingSpinner from "../common/LoadingSpinner";
-import UserService from "../../services/UserService"; // Import the service
+import UserService from "../../services/userService"; // Import the service
 
 const UserProfile = () => {
   const [success, setSuccess] = useState("");
